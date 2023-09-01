@@ -36,3 +36,38 @@ Required arguments:
 Optional arguments:
   -h, --help         Show this help message and exit
 ```
+
+## API Reference
+
+The Elgato lights have the following REST API once connected to your WiFi.
+
+Determine the IP address of the lights. There is probably a UDP broadcast for finding the lights which is unknown at this point.
+
+REST Endpoint:
+
+- TYPE: http (not encrypted)
+- AUTH: None
+- PORT: 9123
+- PATH: `/elgato/lights`
+
+REST Methods:
+
+- GET: Returns the JSON below with the current state of the light
+- POST: With the below JSON payload, sets the state of the light
+
+REST JSON Payload:
+
+```json
+{
+    "numberOfLights": 1,
+    "lights": [
+        {
+            "on": 1,
+            "brightness": 9,
+            "temperature": 150
+        }
+    ]
+}
+```
+
+Example: See the [curl command](https://github.com/grantcarthew/bash-elgato/blob/ff177a48b64b43c4de40a1d67099ea28ee5682e9/elgato#L143) from the Bash script.
