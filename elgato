@@ -8,7 +8,7 @@ function print_usage() {
     cat <<EOF
 Usage: elgato <command> <ip_address_list> [--help]
 
-Basic Elgato light management for Bash
+Elgato light management for Bash
 
 Command list:
   on                 Turn the light(s) on
@@ -22,13 +22,14 @@ Dependencies:
 
 Required arguments:
   command            The light command, see above
+  ip_address_list    A space separated list of light IP addresses
 
 Optional arguments:
   -h, --help         Show this help message and exit
 EOF
 }
 
-if [[ $# -lt 1 || "${1}" == "-h" || "${1}" == "--help" ]]; then
+if [[ $# -lt 2 || "${1}" == "-h" || "${1}" == "--help" ]]; then
     print_usage
     exit 1
 fi
