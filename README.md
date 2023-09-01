@@ -32,6 +32,7 @@ Dependencies:
 
 Required arguments:
   command            The light command, see above
+  ip_address_list    A space separated list of light IP addresses
 
 Optional arguments:
   -h, --help         Show this help message and exit
