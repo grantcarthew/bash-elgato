@@ -1,6 +1,6 @@
 # elgato
 
-Elgato Key Light Air management from Bash
+Elgato [Key Light Air](https://www.elgato.com/us/en/p/key-light-air) management from Bash
 
 Inspired by [Trevor Sullivan's](https://github.com/pcgeek86) [Elgato PowerShell](https://github.com/pcgeek86/elgato) module.
 
