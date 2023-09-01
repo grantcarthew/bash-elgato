@@ -9,7 +9,7 @@ Inspired by [Trevor Sullivan's](https://github.com/pcgeek86) [Elgato PowerShell]
 ```shell
 curl -o elgato https://raw.githubusercontent.com/grantcarthew/bash-elgato/main/elgato
 chmod +x elgato
-mv elgato /usr/local/bin/
+sudo mv elgato /usr/local/bin/
 elgato -h
 ```
 
