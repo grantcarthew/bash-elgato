@@ -60,8 +60,6 @@ if [[ ! "${valid_commands[*]}" =~ ${light_command} ]]; then
     exit 1
 fi
 
-declare failure=false
-
 # -----------------------------------------------------------------------------
 #  Colour and log definitions
 # -----------------------------------------------------------------------------
@@ -124,12 +122,27 @@ function log_success() {
 
 function log_failure() {
     printf "${RED}✖${NORMAL} %b\n" "${@}"
-    failure=true
 }
 
 # -----------------------------------------------------------------------------
 #  Body
 # -----------------------------------------------------------------------------
+
+function turn_on() {
+    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":1}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
+        log_success "Success: ${light_ip}"
+        return
+    fi
+    log_failure "Failure: ${light_ip}"
+}
+
+function turn_off() {
+    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":0}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
+        log_success "Success: ${light_ip}"
+        return
+    fi
+    log_failure "Failure: ${light_ip}"
+}
 
 log_title " Elgato Light Management"
 # shellcheck disable=SC2312
@@ -141,23 +154,15 @@ done
 if [[ "${light_command}" == "on" ]]; then
     log_header " Power On"
     for light_ip in "${light_ips[@]}"; do
-        if ! curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":1}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
-            log_failure "Failed: ${light_ip}"
-        fi
+        turn_on &
     done
 fi
 
 if [[ "${light_command}" == "off" ]]; then
     log_header " Power Off"
     for light_ip in "${light_ips[@]}"; do
-        if ! curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":0}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
-            log_failure "Failed: ${light_ip}"
-        fi
+        turn_off &
     done
 fi
 
-if [[ "${failure}" == "true" ]]; then
-    log_failure "One or more lights failed to respond"
-    exit 1
-fi
-log_success "Success"
+wait
