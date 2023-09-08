@@ -1,10 +1,9 @@
 #!/usr/bin/env bash
 
 # Environment setup
-set -eo pipefail
+set -o pipefail
 
 function print_usage() {
-    # shellcheck disable=SC2312
     cat <<EOF
 Usage: elgato <command> <ip_address_list> [--help]
 
@@ -13,12 +12,14 @@ Elgato light management for Bash
 Command list:
   on                 Turn the light(s) on
   off                Turn the light(s) off
+  toggle             Turn the light(s) on or off
 
 Example:
 $ elgato on 172.30.1.181 172.30.1.143
 
 Dependencies:
   curl               The Client for URLs CLI tool
+  jq                 The JSON Query CLI tool
 
 Required arguments:
   command            The light command, see above
@@ -35,7 +36,7 @@ if [[ $# -lt 2 || "${1}" == "-h" || "${1}" == "--help" ]]; then
 fi
 
 # Dependency check
-for cmd in curl; do
+for cmd in curl jq; do
     if ! command -v "${cmd}" >/dev/null; then
         log_error "ERROR: Missing dependency - '${cmd}'"
         exit 1
@@ -54,11 +55,16 @@ for arg in "$@"; do
     light_ips+=("${arg}")
 done
 
-declare -a valid_commands=("on" "off")
+declare -a valid_commands=("on" "off" "toggle")
 if [[ ! "${valid_commands[*]}" =~ ${light_command} ]]; then
     echo "The command '${light_command}' is not valid."
     exit 1
 fi
+
+declare url_suffix=":9123/elgato/lights"
+declare state=""
+declare MAX_CONCURRENT_JOBS=10
+declare current_jobs=0
 
 # -----------------------------------------------------------------------------
 #  Colour and log definitions
@@ -87,7 +93,6 @@ function log_line() {
     if [[ -n $2 ]]; then
         length="$2"
     fi
-    # shellcheck disable=SC2312
     printf "${BOLD}${MAGENTA}${char}%.0s${NORMAL}" $(seq 1 "${length}") >&2
     echo
 }
@@ -125,44 +130,84 @@ function log_failure() {
 }
 
 # -----------------------------------------------------------------------------
-#  Body
+#  Body Functions
 # -----------------------------------------------------------------------------
-
-function turn_on() {
-    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":1}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
-        log_success "Success: ${light_ip}"
+function get_state() {
+    local light_ip="${1}"
+    if state_data="$(curl -s -m 4 -X GET -H "Content-Type: application/json" "http://${light_ip}${url_suffix}")"; then
+        state="$(echo "${state_data}" | jq -r '.lights[0].on')"
         return
     fi
     log_failure "Failure: ${light_ip}"
+}
+
+function api_put_call() {
+    local light_ip="${1}"
+    local on_state="${2}"
+    local payload='{"numberOfLights":1,"lights":[{"on":'"${on_state}"'}]}'
+
+    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d "${payload}" "http://${light_ip}${url_suffix}" >/dev/null 2>&1; then
+        log_success "Success: ${light_ip}"
+    else
+        log_failure "Failure: ${light_ip}"
+    fi
+}
+
+function turn_on() {
+    api_put_call "${1}" 1 &
 }
 
 function turn_off() {
-    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d '{"numberOfLights":1,"lights":[{"on":0}]}' "http://${light_ip}:9123/elgato/lights" >/dev/null 2>&1; then
-        log_success "Success: ${light_ip}"
-        return
-    fi
-    log_failure "Failure: ${light_ip}"
+    api_put_call "${1}" 0 &
 }
 
+function toggle_on_off() {
+    local light_ip="${1}"
+    get_state "${light_ip}"
+    if [[ "${state}" -eq 1 ]]; then
+        turn_off "${light_ip}" &
+    else
+        turn_on "${light_ip}" &
+    fi
+}
+
+# -----------------------------------------------------------------------------
+#  Body Logic
+# -----------------------------------------------------------------------------
 log_title " Elgato Light Management"
-# shellcheck disable=SC2312
 log_message "  Command: ${light_command}"
 for light_ip in "${light_ips[@]}"; do
     log_message " Light IP: ${light_ip}"
 done
 
-if [[ "${light_command}" == "on" ]]; then
-    log_header " Power On"
+function process_lights() {
+    local action=$1
+    log_header " Power ${2}"
     for light_ip in "${light_ips[@]}"; do
-        turn_on &
+        "${action}" "${light_ip}" &
+        ((current_jobs++))
+        if ((current_jobs >= MAX_CONCURRENT_JOBS)); then
+            wait
+            current_jobs=0
+        fi
     done
-fi
+}
 
-if [[ "${light_command}" == "off" ]]; then
-    log_header " Power Off"
-    for light_ip in "${light_ips[@]}"; do
-        turn_off &
-    done
-fi
+case "${light_command}" in
+    "toggle")
+        process_lights toggle_on_off "Toggle"
+        ;;
+    "on")
+        process_lights turn_on "On"
+        ;;
+    "off")
+        process_lights turn_off "Off"
+        ;;
+    *)
+        log_error "Invalid command"
+        print_usage
+        exit 1
+        ;;
+esac
 
 wait

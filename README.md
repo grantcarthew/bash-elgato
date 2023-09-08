@@ -18,17 +18,19 @@ elgato -h
 ```text
 Usage: elgato <command> <ip_address_list> [--help]
 
-Basic Elgato light management for Bash
+Elgato light management for Bash
 
 Command list:
   on                 Turn the light(s) on
   off                Turn the light(s) off
+  toggle             Turn the light(s) on or off
 
 Example:
 $ elgato on 172.30.1.181 172.30.1.143
 
 Dependencies:
   curl               The Client for URLs CLI tool
+  jq                 The JSON Query CLI tool
 
 Required arguments:
   command            The light command, see above
