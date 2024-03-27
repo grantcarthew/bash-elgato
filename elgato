@@ -146,7 +146,7 @@ function api_put_call() {
     local on_state="${2}"
     local payload='{"numberOfLights":1,"lights":[{"on":'"${on_state}"'}]}'
 
-    if curl -s -m 4 -X PUT -H "Content-Type: application/json" -d "${payload}" "http://${light_ip}${url_suffix}" >/dev/null 2>&1; then
+    if curl -s -m 10 -X PUT -H "Content-Type: application/json" -d "${payload}" "http://${light_ip}${url_suffix}" >/dev/null 2>&1; then
         log_success "Success: ${light_ip}"
     else
         log_failure "Failure: ${light_ip}"
@@ -154,20 +154,20 @@ function api_put_call() {
 }
 
 function turn_on() {
-    api_put_call "${1}" 1 &
+    api_put_call "${1}" 1
 }
 
 function turn_off() {
-    api_put_call "${1}" 0 &
+    api_put_call "${1}" 0
 }
 
 function toggle_on_off() {
     local light_ip="${1}"
     get_state "${light_ip}"
     if [[ "${state}" -eq 1 ]]; then
-        turn_off "${light_ip}" &
+        turn_off "${light_ip}"
     else
-        turn_on "${light_ip}" &
+        turn_on "${light_ip}"
     fi
 }
 
@@ -184,7 +184,7 @@ function process_lights() {
     local action=$1
     log_header " Power ${2}"
     for light_ip in "${light_ips[@]}"; do
-        "${action}" "${light_ip}" &
+        "${action}" "${light_ip}"
         ((current_jobs++))
         if ((current_jobs >= MAX_CONCURRENT_JOBS)); then
             wait
@@ -195,13 +195,13 @@ function process_lights() {
 
 case "${light_command}" in
     "toggle")
-        process_lights toggle_on_off "Toggle"
+        process_lights toggle_on_off "Toggle" &
         ;;
     "on")
-        process_lights turn_on "On"
+        process_lights turn_on "On" &
         ;;
     "off")
-        process_lights turn_off "Off"
+        process_lights turn_off "Off" &
         ;;
     *)
         log_error "Invalid command"
